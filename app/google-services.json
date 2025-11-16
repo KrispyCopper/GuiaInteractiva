@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "407733242633",
+    "project_id": "guiainteractiva-d362e",
+    "storage_bucket": "guiainteractiva-d362e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:407733242633:android:2d561387954dd96b89e1d8",
+        "android_client_info": {
+          "package_name": "com.example.guiainteractiva"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvySATqFXY3Z5IatRVE4nbs5Gz_fe6MV4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
