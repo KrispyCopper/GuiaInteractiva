@@ -24,7 +24,7 @@ class MapViewModel : ViewModel() {
 
     // Crear un POI nuevo
     fun onAddPoi(position: Offset) {
-        val newPoi = Poi(positionOnImage = position, title = "Nuevo Punto")
+        val newPoi = Poi(positionOnImage = position, title = "Nuevo Punto", emoji = "📍")
         _uiState.update { state ->
             state.copy(
                 pois = state.pois + newPoi,
@@ -53,6 +53,13 @@ class MapViewModel : ViewModel() {
     fun onPoiTitleChanged(newTitle: String) {
         _uiState.update {
             it.copy(selectedPoi = it.selectedPoi?.copy(title = newTitle))
+        }
+    }
+
+    // Cambiar emoji del POI seleccionado
+    fun onEmojiChanged(newEmoji: String) {
+        _uiState.update {
+            it.copy(selectedPoi = it.selectedPoi?.copy(emoji = newEmoji))
         }
     }
 

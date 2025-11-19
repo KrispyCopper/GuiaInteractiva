@@ -2,14 +2,21 @@ package com.example.guiainteractiva.ui.map
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
@@ -48,6 +55,7 @@ fun MapScreen(
                 selectedPoi = uiState.selectedPoi,
                 onTitleChange = { mapViewModel.onPoiTitleChanged(it) },
                 onDescriptionChange = { mapViewModel.onPoiDescriptionChanged(it) },
+                onEmojiChange = { mapViewModel.onEmojiChanged(it) }, // Se añade el parámetro que faltaba
                 onConfirm = {
                     mapViewModel.onConfirmChanges()
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
@@ -79,23 +87,13 @@ fun MapScreen(
                 }
             )
 
-
-            // Aquí deben ir los botones de Zoom In / Zoom Out.
-            // Ponlos como un nuevo componente (ZoomControls)
-            // y alínealos así:
-            //
-            // modifier = Modifier
-            //    .align(Alignment.BottomEnd)
-            //    .padding(16.dp)
-            //
-            // Ejemplo:
-            //
-            // ZoomControls(
-            //     onZoomIn = { mapViewModel.onZoomIn() },
-            //     onZoomOut = { mapViewModel.onZoomOut() },
-            //     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-            // )
-            // si no entiendes puedes preguntarle a la ia
+            ZoomControls(
+                onZoomIn = { /* mapViewModel.onZoomIn() */ }, // Descomenta cuando tengas la función
+                onZoomOut = { /* mapViewModel.onZoomOut() */ }, // Descomenta cuando tengas la función
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 96.dp, end = 16.dp) // Ajustado para no chocar con el "HelpText"
+            )
 
             // UI Estática
             BackButton(
@@ -137,6 +135,39 @@ fun MapScreen(
             ) {
                 HelpText("Toca un punto para eliminarlo")
             }
+        }
+    }
+}
+
+@Composable
+private fun ZoomControls(
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp) // Espacio entre los botones
+    ) {
+        // Botón de Zoom In (+)
+        SmallFloatingActionButton(
+            onClick = onZoomIn,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = "Zoom In"
+            )
+        }
+
+        // Botón de Zoom Out (-)
+        SmallFloatingActionButton(
+            onClick = onZoomOut,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Remove,
+                contentDescription = "Zoom Out"
+            )
         }
     }
 }

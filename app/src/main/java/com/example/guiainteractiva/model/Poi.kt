@@ -7,5 +7,6 @@ data class Poi(
     val id: UUID = UUID.randomUUID(),
     val positionOnImage: Offset,
     val title: String = "",
-    val description: String = ""
+    val description: String = "",
+    val emoji: String = ""
 )

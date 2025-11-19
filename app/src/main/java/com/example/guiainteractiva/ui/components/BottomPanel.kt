@@ -25,6 +25,7 @@ fun AdminBottomPanel(
     selectedPoi: Poi?,
     onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
+    onEmojiChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -40,7 +41,9 @@ fun AdminBottomPanel(
 
             TitleTextField(
                 title = selectedPoi.title,
-                onTitleChange = onTitleChange
+                onTitleChange = onTitleChange,
+                emoji = selectedPoi.emoji,
+                onEmojiChange = onEmojiChange
             )
 
             BodyTextField(
@@ -102,52 +105,55 @@ private fun HeaderRow(onConfirm: () -> Unit, onCancel: () -> Unit) {
 }
 
 @Composable
-private fun TitleTextField(title: String, onTitleChange: (String) -> Unit) {
+private fun TitleTextField(
+    title: String, 
+    onTitleChange: (String) -> Unit,
+    emoji: String,
+    onEmojiChange: (String) -> Unit
+) {
 
     val fieldColor = if (isSystemInDarkTheme()) DarkGrayField else GrayField
 
-    //   AGREGAR EMOJI INPUT
-    //  Aquí va el pequeño "botón/TextField" de 1 caracter
-    //  que permitirá agregar un emoji asociado al POI.
-    //
-    //  Recomendación:
-    //  - Envolver tod0 este bloque en una Row {}
-    //  - A la izquierda colocar un TextField o Box
-    //    que acepte solo 1 carácter (emoji)
-    //  - Mantener el TitleTextField actual a la derecha
-    //
-    //  Ejemplo de estructura:
-    //
-    //     Row {
-    //         EmojiField(...)
-    //         Spacer(...)
-    //         TextField actual (...)
-    //     }
-    //  Solo tienes que agregar un nuevo input aca.
-    //  Si no entiendes puedes preguntarle a la ia.
-
-
-    TextField(
-        value = title,
-        onValueChange = onTitleChange,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Añadir Título") },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.AddCircle,
-                contentDescription = null,
-                tint = ConfirmGreen
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextField(
+            value = emoji,
+            onValueChange = { if (it.length <= 1) onEmojiChange(it) },
+            modifier = Modifier.width(70.dp),
+            placeholder = { Text("😀") },
+            textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = fieldColor,
+                unfocusedContainerColor = fieldColor,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
             )
-        },
-        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-        shape = RoundedCornerShape(12.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = fieldColor,
-            unfocusedContainerColor = fieldColor,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
         )
-    )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        TextField(
+            value = title,
+            onValueChange = onTitleChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Añadir Título") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.AddCircle,
+                    contentDescription = null,
+                    tint = ConfirmGreen
+                )
+            },
+            textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = fieldColor,
+                unfocusedContainerColor = fieldColor,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            )
+        )
+    }
 }
 
 @Composable
