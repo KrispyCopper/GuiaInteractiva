@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.lang.Exception
 
 data class LoginState(
     val loading: Boolean = false
@@ -20,58 +23,101 @@ sealed class LoginEvent {
 class LoginViewModel : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
 
     private val _screenState = MutableStateFlow(LoginState())
     val screenState: StateFlow<LoginState> = _screenState.asStateFlow()
 
     private val _screenEvents = MutableSharedFlow<LoginEvent>()
     val screenEvents: SharedFlow<LoginEvent> = _screenEvents.asSharedFlow()
-    // LOGIN
+
     fun login(email: String, password: String) {
-        setLoading(true)
+        if (email.isBlank() || password.isBlank()) {
+            emitEvent(LoginEvent.Error("Por favor, completa todos los campos"))
+            return
+        }
 
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener { result ->
+        viewModelScope.launch {
+            setLoading(true)
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                emitEvent(LoginEvent.LoginSuccess)
+            } catch (e: Exception) {
+                emitEvent(LoginEvent.Error(firebaseError(e)))
+            } finally {
                 setLoading(false)
-
-                if (result.isSuccessful) {
-                    emitEvent(LoginEvent.LoginSuccess)
-                } else {
-                    emitEvent(LoginEvent.Error(firebaseError(result.exception)))
-                }
             }
+        }
     }
-    //REGISTRO
-    fun createUser(email: String, password: String, confirmPassword: String) {
 
+    fun createUser(
+        email: String,
+        password: String,
+        confirmPassword: String,
+        role: String,
+        employeeCodeInput: String? = null
+    ) {
+        // Validaciones iniciales
+        if (email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+            emitEvent(LoginEvent.Error("Por favor, completa todos los campos"))
+            return
+        }
         if (password != confirmPassword) {
             emitEvent(LoginEvent.Error("Las contraseñas no coinciden"))
             return
         }
-
         if (password.length < 8) {
-            emitEvent(LoginEvent.Error("La contraseña debe tener al menos 6 caracteres"))
+            emitEvent(LoginEvent.Error("La contraseña debe tener al menos 8 caracteres"))
             return
         }
 
-        setLoading(true)
-
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { result ->
-                setLoading(false)
-
-                if (result.isSuccessful) {
-                    emitEvent(LoginEvent.RegisterSuccess)
-                } else {
-                    emitEvent(LoginEvent.Error(firebaseError(result.exception)))
+        viewModelScope.launch {
+            setLoading(true)
+            try {
+                // Si es admin, valida el código primero
+                if (role == "admin") {
+                    val isCodeValid = validateEmployeeCode(employeeCodeInput)
+                    if (!isCodeValid) {
+                        throw Exception("Código de empleado incorrecto")
+                    }
                 }
+
+                // 1. Crear usuario en Firebase Auth
+                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+                val user = authResult.user ?: throw Exception("Error inesperado al crear usuario")
+
+                // 2. Guardar datos adicionales en Firestore
+                val userProfile = hashMapOf("email" to email, "role" to role)
+                db.collection("users").document(user.uid).set(userProfile).await()
+
+                // 3. Emitir evento de éxito
+                emitEvent(LoginEvent.RegisterSuccess)
+
+            } catch (e: Exception) {
+                emitEvent(LoginEvent.Error(firebaseError(e)))
+            } finally {
+                setLoading(false)
             }
+        }
+    }
+
+    private suspend fun validateEmployeeCode(inputCode: String?): Boolean {
+        if (inputCode.isNullOrBlank()) {
+            return false
+        }
+        return try {
+            val document = db.collection("Config").document("access").get().await()
+            val realCode = document.getString("EmployeeCode")
+            realCode == inputCode
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun signOut() {
         auth.signOut()
     }
-    //HELPERS
+
     private fun setLoading(value: Boolean) {
         _screenState.update { it.copy(loading = value) }
     }
@@ -82,41 +128,22 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-
-    // ERRORES FIREBASE
     private fun firebaseError(exception: Exception?): String {
-        val code = (exception as? FirebaseAuthException)?.errorCode
-
-        when (code) {
-            "ERROR_INVALID_EMAIL" -> return "El correo tiene un formato inválido."
-            "ERROR_WRONG_PASSWORD" -> return "La contraseña es incorrecta."
-            "ERROR_USER_NOT_FOUND" -> return "No existe un usuario con ese correo."
-            "ERROR_EMAIL_ALREADY_IN_USE" -> return "El correo ya está registrado."
-            "ERROR_WEAK_PASSWORD" -> return "La contraseña debe tener al menos 6 caracteres."
-            "ERROR_TOO_MANY_REQUESTS" -> return "Demasiados intentos. Intenta más tarde."
-            "ERROR_INVALID_CREDENTIAL" -> return "El correo o la contraseña son incorrectos."
+        // Primero, maneja el mensaje de excepciones personalizadas
+        if (exception?.message == "Código de empleado incorrecto") {
+            return exception.message!!
         }
 
-        val msg = exception?.message.orEmpty()
-
-        return when {
-            msg.contains("badly formatted", ignoreCase = true) ->
-                "El correo tiene un formato inválido."
-
-            msg.contains("password is invalid", ignoreCase = true) ->
-                "La contraseña es incorrecta."
-
-            msg.contains("no user record", ignoreCase = true) ->
-                "No existe un usuario con ese correo."
-
-            msg.contains("already in use", ignoreCase = true) ->
-                "El correo ya está registrado."
-
-            msg.contains("blocked all requests", ignoreCase = true) ->
-                "Demasiados intentos. Inténtalo más tarde."
-
-            else ->
-                "Error inesperado. Inténtalo de nuevo."
+        val code = (exception as? FirebaseAuthException)?.errorCode
+        return when (code) {
+            "ERROR_INVALID_EMAIL" -> "El correo tiene un formato inválido."
+            "ERROR_WRONG_PASSWORD" -> "La contraseña es incorrecta."
+            "ERROR_USER_NOT_FOUND" -> "No existe un usuario con ese correo."
+            "ERROR_EMAIL_ALREADY_IN_USE" -> "El correo ya está registrado."
+            "ERROR_WEAK_PASSWORD" -> "La contraseña debe tener al menos 8 caracteres."
+            "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos. Intenta más tarde."
+            "ERROR_INVALID_CREDENTIAL" -> "El correo o la contraseña son incorrectos."
+            else -> exception?.message ?: "Error inesperado. Inténtalo de nuevo."
         }
     }
 }

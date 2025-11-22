@@ -62,6 +62,32 @@ fun LoginScreen(
 }
 
 @Composable
+    //Header reutilizable
+fun Header() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Guía Museo Angostura",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Image(
+            painter = painterResource(id = R.drawable.logo_museo),
+            contentDescription = "Logo de la Aplicación",
+            modifier = Modifier.height(120.dp)
+        )
+    }
+}
+@Composable
 private fun LoginScreenContent(
     modifier: Modifier = Modifier,
     uiState: LoginState,
@@ -78,33 +104,17 @@ private fun LoginScreenContent(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // HEADER
-            Column(
+            //Header refactorizado para ser reutilizable
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Guía Museo Angostura",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.semantics { heading() }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Image(
-                    painter = painterResource(id = R.drawable.logo_museo),
-                    contentDescription = "Logo de la Aplicación",
-                    modifier = Modifier.height(120.dp)
-                )
+                Header()
             }
 
-            // FORMULARIO INFERIOR
+            //Formulario Inferior
             Surface(
                 modifier = Modifier
                     .weight(2f)
@@ -122,7 +132,7 @@ private fun LoginScreenContent(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // EMAIL FIELD
+                    //Email
                     TextField(
                         value = email,
                         onValueChange = { email = it },
@@ -140,7 +150,7 @@ private fun LoginScreenContent(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // PASSWORD FIELD
+                    // Contraseña
                     TextField(
                         value = password,
                         onValueChange = { password = it },
@@ -159,7 +169,7 @@ private fun LoginScreenContent(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // LOGIN BUTTON
+                    //Boton Login
                     Button(
                         onClick = { onLogin(email, password) },
                         modifier = Modifier.fillMaxWidth(),
@@ -185,7 +195,7 @@ private fun LoginScreenContent(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // REGISTER BUTTON
+                    //Boton registro
                     Button(
                         onClick = onNavigateToRegister,
                         modifier = Modifier.fillMaxWidth(),
@@ -205,7 +215,7 @@ private fun LoginScreenContent(
             }
         }
 
-        // LOADING OVERLAY
+        // Overlay de carga
         if (uiState.loading) {
             Box(
                 modifier = Modifier
@@ -221,16 +231,4 @@ private fun LoginScreenContent(
 
 fun showToast(context: Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-}
-
-@Preview(name = "Login Screen", showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    GuiaInteractivaTheme {
-        LoginScreenContent(
-            uiState = LoginState(),
-            onLogin = { _, _ -> },
-            onNavigateToRegister = {}
-        )
-    }
 }

@@ -2,7 +2,17 @@ package com.example.guiainteractiva.ui.components
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,7 +24,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.guiainteractiva.model.Poi
 import com.example.guiainteractiva.ui.theme.*
@@ -64,7 +76,6 @@ private fun HeaderRow(onConfirm: () -> Unit, onCancel: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        // Etiqueta "Vista Administrador"
         Surface(
             shape = CircleShape,
             color = PastelGreenBg
@@ -73,14 +84,12 @@ private fun HeaderRow(onConfirm: () -> Unit, onCancel: () -> Unit) {
                 text = "Vista Administrador",
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White, // siempre blanco, simple y consistente
+                color = Color.White, 
                 fontWeight = FontWeight.Bold
             )
         }
 
-        // Botones confirmar / cancelar
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-
             IconButton(
                 onClick = onConfirm,
                 colors = IconButtonDefaults.iconButtonColors(
@@ -106,7 +115,7 @@ private fun HeaderRow(onConfirm: () -> Unit, onCancel: () -> Unit) {
 
 @Composable
 private fun TitleTextField(
-    title: String, 
+    title: String,
     onTitleChange: (String) -> Unit,
     emoji: String,
     onEmojiChange: (String) -> Unit
@@ -114,13 +123,22 @@ private fun TitleTextField(
 
     val fieldColor = if (isSystemInDarkTheme()) DarkGrayField else GrayField
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         TextField(
             value = emoji,
-            onValueChange = { if (it.length <= 1) onEmojiChange(it) },
+            onValueChange = onEmojiChange, // <-- BUG CORREGIDO
             modifier = Modifier.width(70.dp),
-            placeholder = { Text("😀") },
-            textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            placeholder = { 
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { Text("😀") }
+            },
+            textStyle = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            ),
+            singleLine = true,
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = fieldColor,
@@ -135,7 +153,7 @@ private fun TitleTextField(
         TextField(
             value = title,
             onValueChange = onTitleChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.weight(1f), 
             placeholder = { Text("Añadir Título") },
             leadingIcon = {
                 Icon(
@@ -145,6 +163,7 @@ private fun TitleTextField(
                 )
             },
             textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            singleLine = true,
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = fieldColor,

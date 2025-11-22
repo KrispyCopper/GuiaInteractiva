@@ -51,8 +51,7 @@ fun ZoomableMapContent(
 
     var hasInitialized by remember { mutableStateOf(false) }
 
-    // INICIALIZACIÓN UNA SOLA VEZ (centrar el mapa correctamente, Dios que dificil fue lograr
-    // Que el mapa se quedara bien centrado, estuve toda una tarde intentando que quedara bien)
+    // Inicializacion (centrar el mapa correctamente)
 
     LaunchedEffect(containerSize) {
         if (hasInitialized) return@LaunchedEffect
@@ -81,7 +80,7 @@ fun ZoomableMapContent(
         hasInitialized = true
     }
 
-    // GESTOS DE ZOOM + PAN
+    // Gestos de zoom y pan
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -135,7 +134,7 @@ fun ZoomableMapContent(
             contentDescription = "Mapa del museo",
             contentScale = ContentScale.None,
             modifier = Modifier
-                .onSizeChanged { /* evita tamaño 0x0 */ }
+                .onSizeChanged {}
                 .graphicsLayer(
                     scaleX = scale,
                     scaleY = scale,

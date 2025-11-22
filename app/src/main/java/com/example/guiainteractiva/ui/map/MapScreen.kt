@@ -33,13 +33,27 @@ import com.example.guiainteractiva.ui.components.AdminBottomPanel
 import com.example.guiainteractiva.ui.components.BackButton
 import com.example.guiainteractiva.ui.components.PoiActionButtons
 import com.example.guiainteractiva.ui.components.ProfileButton
+import com.example.guiainteractiva.ui.components.UserBottomPanel
 import com.example.guiainteractiva.ui.theme.GuiaInteractivaTheme
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
     mapViewModel: MapViewModel = viewModel(),
+    onNavigateBack: () -> Unit
+) {
+    val uiState by mapViewModel.uiState.collectAsStateWithLifecycle()
+
+    if (uiState.isUserAdmin) {
+        AdminMapScreen(mapViewModel, onNavigateBack)
+    } else {
+        UserMapScreen(mapViewModel, onNavigateBack)
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdminMapScreen(
+    mapViewModel: MapViewModel,
     onNavigateBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -51,11 +65,12 @@ fun MapScreen(
         sheetPeekHeight = if (uiState.selectedPoi != null) 64.dp else 0.dp,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         sheetContent = {
+            // Panel inferior de edición
             AdminBottomPanel(
                 selectedPoi = uiState.selectedPoi,
                 onTitleChange = { mapViewModel.onPoiTitleChanged(it) },
                 onDescriptionChange = { mapViewModel.onPoiDescriptionChanged(it) },
-                onEmojiChange = { mapViewModel.onEmojiChanged(it) }, // Se añade el parámetro que faltaba
+                onEmojiChange = { mapViewModel.onEmojiChanged(it) },
                 onConfirm = {
                     mapViewModel.onConfirmChanges()
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
@@ -69,6 +84,7 @@ fun MapScreen(
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
 
+            // Contenido del mapa (zoom, POIs)
             ZoomableMapContent(
                 modifier = Modifier.fillMaxSize(),
                 mode = uiState.mode,
@@ -87,19 +103,20 @@ fun MapScreen(
                 }
             )
 
+            // Controles de Zoom
             ZoomControls(
-                onZoomIn = { /* mapViewModel.onZoomIn() */ }, // Descomenta cuando tengas la función
-                onZoomOut = { /* mapViewModel.onZoomOut() */ }, // Descomenta cuando tengas la función
+                onZoomIn = { /* TODO */ },
+                onZoomOut = { /* TODO */ },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 96.dp, end = 16.dp) // Ajustado para no chocar con el "HelpText"
+                    .padding(bottom = 96.dp, end = 16.dp)
             )
 
-            // UI Estática
+            // Botón de Volver
             BackButton(
                 modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
                 onClick = {
-                    if (uiState.mode == MapMode.ADD_POI || uiState.mode == MapMode.DELETE_POI) {
+                    if (uiState.mode != MapMode.VIEW) {
                         mapViewModel.onEnterViewMode()
                     } else {
                         onNavigateBack()
@@ -107,8 +124,10 @@ fun MapScreen(
                 }
             )
 
+            // Botón de Perfil
             ProfileButton(modifier = Modifier.align(Alignment.TopEnd).padding(16.dp))
 
+            // Botones de acción para Admin (Añadir/Eliminar)
             AnimatedVisibility(
                 visible = uiState.mode == MapMode.VIEW,
                 modifier = Modifier
@@ -122,6 +141,7 @@ fun MapScreen(
                 )
             }
 
+            // Textos de ayuda contextuales
             AnimatedVisibility(
                 visible = uiState.mode == MapMode.ADD_POI,
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -139,6 +159,60 @@ fun MapScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UserMapScreen(
+    mapViewModel: MapViewModel,
+    onNavigateBack: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val scaffoldState = rememberBottomSheetScaffoldState()
+    val uiState by mapViewModel.uiState.collectAsStateWithLifecycle()
+
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = if (uiState.selectedPoi != null) 64.dp else 0.dp,
+        sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        sheetContent = { 
+            // Panel inferior de información
+            UserBottomPanel(selectedPoi = uiState.selectedPoi)
+        },
+    ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+
+            // Contenido del mapa (zoom, POIs)
+            ZoomableMapContent(
+                modifier = Modifier.fillMaxSize(),
+                mode = uiState.mode, // El modo siempre será VIEW para el usuario
+                pois = uiState.pois,
+                onAddPoi = { /* Los usuarios no pueden añadir POIs */ },
+                onPoiClick = { poi ->
+                    mapViewModel.onPoiClicked(poi)
+                    scope.launch { scaffoldState.bottomSheetState.expand() }
+                }
+            )
+
+            // Controles de Zoom
+            ZoomControls(
+                onZoomIn = { },
+                onZoomOut = { },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 96.dp, end = 16.dp)
+            )
+
+            // Botón de Volver
+            BackButton(
+                modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
+                onClick = onNavigateBack
+            )
+
+            // Botón de Perfil
+            ProfileButton(modifier = Modifier.align(Alignment.TopEnd).padding(16.dp))
+        }
+    }
+}
+
 @Composable
 private fun ZoomControls(
     onZoomIn: () -> Unit,
@@ -148,30 +222,17 @@ private fun ZoomControls(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp) // Espacio entre los botones
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Botón de Zoom In (+)
-        SmallFloatingActionButton(
-            onClick = onZoomIn,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = "Zoom In"
-            )
+        SmallFloatingActionButton(onClick = onZoomIn) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = "Zoom In")
         }
 
-        // Botón de Zoom Out (-)
-        SmallFloatingActionButton(
-            onClick = onZoomOut,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Remove,
-                contentDescription = "Zoom Out"
-            )
+        SmallFloatingActionButton(onClick = onZoomOut) {
+            Icon(imageVector = Icons.Filled.Remove, contentDescription = "Zoom Out")
         }
     }
 }
-
 @Composable
 private fun HelpText(text: String) {
     Text(
@@ -185,11 +246,4 @@ private fun HelpText(text: String) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MapScreenPreview() {
-    GuiaInteractivaTheme {
-    }
 }
