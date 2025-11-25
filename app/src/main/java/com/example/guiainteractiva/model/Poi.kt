@@ -14,6 +14,7 @@ data class Poi(
     var title: String = "",
     var description: String = "",
     var emoji: String = "",
+    var imageUrl: String? = null,
 
     // Guardamos las coordenadas X e Y como Doubles, ya que Firestore no entiende el tipo Offset.
     var positionX: Double = 0.0,
@@ -31,12 +32,14 @@ data class Poi(
         title: String,
         description: String = "",
         emoji: String,
+        imageUrl: String? = null,
         positionOnImage: Offset
     ) : this(
         id = id,
         title = title,
         description = description,
         emoji = emoji,
+        imageUrl = imageUrl,
         positionX = positionOnImage.x.toDouble(),
         positionY = positionOnImage.y.toDouble()
     )

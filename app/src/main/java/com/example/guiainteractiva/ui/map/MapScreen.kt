@@ -2,29 +2,24 @@ package com.example.guiainteractiva.ui.map
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,7 +29,7 @@ import com.example.guiainteractiva.ui.components.BackButton
 import com.example.guiainteractiva.ui.components.PoiActionButtons
 import com.example.guiainteractiva.ui.components.ProfileButton
 import com.example.guiainteractiva.ui.components.UserBottomPanel
-import com.example.guiainteractiva.ui.theme.GuiaInteractivaTheme
+import com.example.guiainteractiva.ui.components.ZoomControls
 import kotlinx.coroutines.launch
 
 @Composable
@@ -59,18 +54,20 @@ fun AdminMapScreen(
     val scope = rememberCoroutineScope()
     val scaffoldState = rememberBottomSheetScaffoldState()
     val uiState by mapViewModel.uiState.collectAsStateWithLifecycle()
+    var zoomFactor by remember { mutableFloatStateOf(1f) }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = if (uiState.selectedPoi != null) 64.dp else 0.dp,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         sheetContent = {
-            // Panel inferior de edición
             AdminBottomPanel(
                 selectedPoi = uiState.selectedPoi,
+                isLoadingImage = uiState.isLoadingImage,
                 onTitleChange = { mapViewModel.onPoiTitleChanged(it) },
                 onDescriptionChange = { mapViewModel.onPoiDescriptionChanged(it) },
                 onEmojiChange = { mapViewModel.onEmojiChanged(it) },
+                onImageSelected = { mapViewModel.onImageSelected(it) },
                 onConfirm = {
                     mapViewModel.onConfirmChanges()
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
@@ -84,11 +81,12 @@ fun AdminMapScreen(
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
 
-            // Contenido del mapa (zoom, POIs)
             ZoomableMapContent(
                 modifier = Modifier.fillMaxSize(),
                 mode = uiState.mode,
                 pois = uiState.pois,
+                zoomFactor = zoomFactor,
+                onZoomFinished = { zoomFactor = 1f },
                 onAddPoi = { position ->
                     mapViewModel.onAddPoi(position)
                     scope.launch { scaffoldState.bottomSheetState.expand() }
@@ -103,16 +101,14 @@ fun AdminMapScreen(
                 }
             )
 
-            // Controles de Zoom
             ZoomControls(
-                onZoomIn = { /* TODO */ },
-                onZoomOut = { /* TODO */ },
+                onZoomIn = { zoomFactor = 1.2f },
+                onZoomOut = { zoomFactor = 1 / 1.2f },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(bottom = 96.dp, end = 16.dp)
             )
 
-            // Botón de Volver
             BackButton(
                 modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
                 onClick = {
@@ -124,15 +120,11 @@ fun AdminMapScreen(
                 }
             )
 
-            // Botón de Perfil
             ProfileButton(modifier = Modifier.align(Alignment.TopEnd).padding(16.dp))
 
-            // Botones de acción para Admin (Añadir/Eliminar)
             AnimatedVisibility(
                 visible = uiState.mode == MapMode.VIEW,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(y = (-80).dp)
+                modifier = Modifier.align(Alignment.CenterStart).offset(y = (-80).dp)
             ) {
                 PoiActionButtons(
                     modifier = Modifier.padding(start = 16.dp),
@@ -141,7 +133,6 @@ fun AdminMapScreen(
                 )
             }
 
-            // Textos de ayuda contextuales
             AnimatedVisibility(
                 visible = uiState.mode == MapMode.ADD_POI,
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -168,71 +159,49 @@ fun UserMapScreen(
     val scope = rememberCoroutineScope()
     val scaffoldState = rememberBottomSheetScaffoldState()
     val uiState by mapViewModel.uiState.collectAsStateWithLifecycle()
+    var zoomFactor by remember { mutableFloatStateOf(1f) }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = if (uiState.selectedPoi != null) 64.dp else 0.dp,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         sheetContent = { 
-            // Panel inferior de información
             UserBottomPanel(selectedPoi = uiState.selectedPoi)
         },
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
 
-            // Contenido del mapa (zoom, POIs)
             ZoomableMapContent(
                 modifier = Modifier.fillMaxSize(),
-                mode = uiState.mode, // El modo siempre será VIEW para el usuario
+                mode = uiState.mode,
                 pois = uiState.pois,
-                onAddPoi = { /* Los usuarios no pueden añadir POIs */ },
+                zoomFactor = zoomFactor,
+                onZoomFinished = { zoomFactor = 1f },
+                onAddPoi = { /* No-op */ },
                 onPoiClick = { poi ->
                     mapViewModel.onPoiClicked(poi)
                     scope.launch { scaffoldState.bottomSheetState.expand() }
                 }
             )
 
-            // Controles de Zoom
             ZoomControls(
-                onZoomIn = { },
-                onZoomOut = { },
+                onZoomIn = { zoomFactor = 1.2f },
+                onZoomOut = { zoomFactor = 1 / 1.2f },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(bottom = 96.dp, end = 16.dp)
             )
 
-            // Botón de Volver
             BackButton(
                 modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
                 onClick = onNavigateBack
             )
 
-            // Botón de Perfil
             ProfileButton(modifier = Modifier.align(Alignment.TopEnd).padding(16.dp))
         }
     }
 }
 
-@Composable
-private fun ZoomControls(
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        SmallFloatingActionButton(onClick = onZoomIn) {
-            Icon(imageVector = Icons.Filled.Add, contentDescription = "Zoom In")
-        }
-
-        SmallFloatingActionButton(onClick = onZoomOut) {
-            Icon(imageVector = Icons.Filled.Remove, contentDescription = "Zoom Out")
-        }
-    }
-}
 @Composable
 private fun HelpText(text: String) {
     Text(

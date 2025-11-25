@@ -37,6 +37,8 @@ fun ZoomableMapContent(
     modifier: Modifier = Modifier,
     mode: MapMode,
     pois: List<Poi>,
+    zoomFactor: Float,
+    onZoomFinished: () -> Unit,
     onAddPoi: (Offset) -> Unit,
     onPoiClick: (Poi) -> Unit
 ) {
@@ -51,8 +53,41 @@ fun ZoomableMapContent(
 
     var hasInitialized by remember { mutableStateOf(false) }
 
-    // Inicializacion (centrar el mapa correctamente)
+    // Función para actualizar el zoom y el offset, reutilizable
+    val updateTransform: (newScaleFactor: Float, centroid: Offset, pan: Offset) -> Unit = { zoom, centroid, pan ->
+        val oldScale = scale
+        val newScale = (scale * zoom).coerceIn(minScale, minScale * 5f)
 
+        var newOffset =
+            (offset - centroid) * (newScale / oldScale) + centroid + pan
+
+        val imgW = painter.intrinsicSize.width * newScale
+        val imgH = painter.intrinsicSize.height * newScale
+
+        val minX = (containerSize.width - imgW).coerceAtMost(0f)
+        val maxX = 0f
+        val minY = (containerSize.height - imgH).coerceAtMost(0f)
+        val maxY = 0f
+
+        newOffset = Offset(
+            x = newOffset.x.coerceIn(minX, maxX),
+            y = newOffset.y.coerceIn(minY, maxY)
+        )
+
+        scale = newScale
+        offset = newOffset
+    }
+
+    // Efecto para el zoom de los botones
+    LaunchedEffect(zoomFactor) {
+        if (zoomFactor != 1f) {
+            val centroid = Offset(containerSize.width / 2f, containerSize.height / 2f)
+            updateTransform(zoomFactor, centroid, Offset.Zero)
+            onZoomFinished()
+        }
+    }
+
+    // Inicializacion (centrar el mapa correctamente)
     LaunchedEffect(containerSize) {
         if (hasInitialized) return@LaunchedEffect
         if (containerSize.width == 0 || containerSize.height == 0) return@LaunchedEffect
@@ -89,27 +124,7 @@ fun ZoomableMapContent(
             .pointerInput(mode) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
                     if (mode == MapMode.VIEW || mode == MapMode.DELETE_POI) {
-                        val oldScale = scale
-                        val newScale = (scale * zoom).coerceIn(minScale, minScale * 5f)
-
-                        var newOffset =
-                            (offset - centroid) * (newScale / oldScale) + centroid + pan
-
-                        val imgW = painter.intrinsicSize.width * newScale
-                        val imgH = painter.intrinsicSize.height * newScale
-
-                        val minX = (containerSize.width - imgW).coerceAtMost(0f)
-                        val maxX = 0f
-                        val minY = (containerSize.height - imgH).coerceAtMost(0f)
-                        val maxY = 0f
-
-                        newOffset = Offset(
-                            x = newOffset.x.coerceIn(minX, maxX),
-                            y = newOffset.y.coerceIn(minY, maxY)
-                        )
-
-                        scale = newScale
-                        offset = newOffset
+                        updateTransform(zoom, centroid, pan)
                     }
                 }
             }

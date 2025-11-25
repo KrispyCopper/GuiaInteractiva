@@ -1,5 +1,7 @@
 package com.example.guiainteractiva.ui.map
 
+import android.net.Uri
+import android.util.Log
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,21 +10,22 @@ import com.example.guiainteractiva.model.MapMode
 import com.example.guiainteractiva.model.Poi
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.lang.Exception
+import java.util.UUID
 
 // Estado de la UI para la pantalla del mapa
 data class MapUiState(
     val mode: MapMode = MapMode.VIEW,
     val pois: List<Poi> = emptyList(),
     val selectedPoi: Poi? = null,
-    val isUserAdmin: Boolean = false
+    val isUserAdmin: Boolean = false,
+    val isLoadingImage: Boolean = false
 )
 
 class MapViewModel : ViewModel() {
@@ -35,6 +38,8 @@ class MapViewModel : ViewModel() {
     // Dependencias de Firebase
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+
     // Repositorio para la lógica de datos de los POIs
     private val poiRepository = PoiRepository()
 
@@ -74,12 +79,46 @@ class MapViewModel : ViewModel() {
         }
     }
 
+    //Gestión de Imágenes
+
+    fun onImageSelected(imageUri: Uri) {
+        val currentPoi = _uiState.value.selectedPoi
+        // Comprobación de seguridad: No subir imagen sin un POI con ID válido
+        if (currentPoi == null || currentPoi.id.isBlank()) {
+            Log.e("MapViewModel", "Intento de subir imagen sin un POI válido seleccionado.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingImage = true) }
+            try {
+                val fileName = "${UUID.randomUUID()}.jpg"
+                val imageRef = storage.reference.child("poi_images/${currentPoi.id}/$fileName")
+
+                imageRef.putFile(imageUri).await()
+                val downloadUrl = imageRef.downloadUrl.await().toString()
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        selectedPoi = currentState.selectedPoi?.copy(imageUrl = downloadUrl),
+                        isLoadingImage = false
+                    )
+                }
+            } catch (e: Exception) {
+                // Añadimos un log para poder depurar el error exacto en Logcat
+                Log.e("MapViewModel", "Error al subir la imagen a Firebase Storage", e)
+                _uiState.update { it.copy(isLoadingImage = false) }
+            }
+        }
+    }
+
+    //Gestión de POIs
+
     // Añade un nuevo POI
     fun onAddPoi(position: Offset) {
         viewModelScope.launch {
             val newPoi = Poi(title = "Nuevo Punto", emoji = "📍", positionOnImage = position)
-            poiRepository.addPoi(newPoi) // Añadimos a Firestore
-            // El resto se actualiza solo gracias al listener
+            poiRepository.addPoi(newPoi)
             _uiState.update { it.copy(mode = MapMode.VIEW) }
         }
     }
@@ -87,63 +126,58 @@ class MapViewModel : ViewModel() {
     // Elimina un POI
     fun onDeletePoi(poiToDelete: Poi) {
         viewModelScope.launch {
-            poiRepository.deletePoi(poiToDelete.id) // Borramos de Firestore
+            poiRepository.deletePoi(poiToDelete.id)
             _uiState.update { it.copy(mode = MapMode.VIEW) }
         }
     }
 
     // Selecciona un POI para mostrar sus detalles
     fun onPoiClicked(poi: Poi) {
-        _uiState.update { it.copy(selectedPoi = poi) }
+        _uiState.update { it.copy(selectedPoi = poi, isLoadingImage = false) }
     }
 
-    // Actualiza el título en el estado local
+    //Edición Temporal del POI Seleccionado
     fun onPoiTitleChanged(newTitle: String) {
         _uiState.update {
             it.copy(selectedPoi = it.selectedPoi?.copy(title = newTitle))
         }
     }
 
-    // Actualiza el emoji en el estado local
     fun onEmojiChanged(newEmoji: String) {
         _uiState.update {
             it.copy(selectedPoi = it.selectedPoi?.copy(emoji = newEmoji))
         }
     }
 
-    // Actualiza la descripción en el estado local
     fun onPoiDescriptionChanged(newDescription: String) {
         _uiState.update {
             it.copy(selectedPoi = it.selectedPoi?.copy(description = newDescription))
         }
     }
 
-    // Confirma y guarda los cambios en la base de datos
+    //Acciones de Confirmación
     fun onConfirmChanges() {
         _uiState.value.selectedPoi?.let { updatedPoi ->
             viewModelScope.launch {
-                poiRepository.updatePoi(updatedPoi)
-                _uiState.update { it.copy(selectedPoi = null) }
+                poiRepository.updatePoi(updatedPoi) // Esto ahora guarda también la imageUrl
+                _uiState.update { it.copy(selectedPoi = null, isLoadingImage = false) }
             }
         }
     }
 
-    // Cancela la edición y cierra el panel
     fun onCancelChanges() {
-        _uiState.update { it.copy(selectedPoi = null) }
+        _uiState.update { it.copy(selectedPoi = null, isLoadingImage = false) }
     }
 
-    // Entra en modo "Añadir POI"
+    //Gestión de Modos de la UI
     fun onEnterAddPoiMode() {
         _uiState.update { it.copy(mode = MapMode.ADD_POI) }
     }
 
-    // Entra en modo "Eliminar POI"
     fun onEnterDeletePoiMode() {
         _uiState.update { it.copy(mode = MapMode.DELETE_POI) }
     }
 
-    // Vuelve al modo de visualización
     fun onEnterViewMode() {
         _uiState.update { it.copy(mode = MapMode.VIEW) }
     }

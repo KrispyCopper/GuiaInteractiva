@@ -22,9 +22,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.guiainteractiva.model.Poi
 import com.example.guiainteractiva.ui.theme.DarkGrayField
 import com.example.guiainteractiva.ui.theme.GrayField
@@ -64,7 +67,18 @@ fun UserBottomPanel(
             DescriptionBody(description = selectedPoi.description)
         }
 
-        // Aquí se mostraran las imágenes del POI en el futuro.
+        // Si el POI tiene una imagen, la mostramos.
+        if (!selectedPoi.imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = selectedPoi.imageUrl,
+                contentDescription = "Imagen de ${selectedPoi.title}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
     }
 }
 
