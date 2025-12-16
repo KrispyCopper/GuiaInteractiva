@@ -6,13 +6,10 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -29,127 +26,58 @@ import androidx.compose.ui.unit.dp
 import com.example.guiainteractiva.R
 import com.example.guiainteractiva.model.MapMode
 import com.example.guiainteractiva.model.Poi
-import kotlin.math.max
+import com.example.guiainteractiva.ui.components.ZoomControls
 import kotlin.math.roundToInt
 
+// Contenido principal del mapa, con lógica de zoom y gestos
 @Composable
 fun ZoomableMapContent(
     modifier: Modifier = Modifier,
+    scale: Float,
+    offset: Offset,
     mode: MapMode,
     pois: List<Poi>,
-    zoomFactor: Float,
-    onZoomFinished: () -> Unit,
+    onTransform: (centroid: Offset, pan: Offset, zoom: Float) -> Unit,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    onSizeChanged: (size: IntSize) -> Unit,
     onAddPoi: (Offset) -> Unit,
-    onPoiClick: (Poi) -> Unit
+    onPoiClick: (Poi) -> Unit,
+    onPoiMoved: (Poi, Offset) -> Unit
 ) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var minScale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-
+    var draggedPoi by remember { mutableStateOf<Poi?>(null) }
     val density = LocalDensity.current
-    val painter = painterResource(id = R.drawable.map_placeholder)
+    val painter = painterResource(id = R.drawable.map_daytime)
 
-    var hasInitialized by remember { mutableStateOf(false) }
-
-    // Función para actualizar el zoom y el offset, reutilizable
-    val updateTransform: (newScaleFactor: Float, centroid: Offset, pan: Offset) -> Unit = { zoom, centroid, pan ->
-        val oldScale = scale
-        val newScale = (scale * zoom).coerceIn(minScale, minScale * 5f)
-
-        var newOffset =
-            (offset - centroid) * (newScale / oldScale) + centroid + pan
-
-        val imgW = painter.intrinsicSize.width * newScale
-        val imgH = painter.intrinsicSize.height * newScale
-
-        val minX = (containerSize.width - imgW).coerceAtMost(0f)
-        val maxX = 0f
-        val minY = (containerSize.height - imgH).coerceAtMost(0f)
-        val maxY = 0f
-
-        newOffset = Offset(
-            x = newOffset.x.coerceIn(minX, maxX),
-            y = newOffset.y.coerceIn(minY, maxY)
-        )
-
-        scale = newScale
-        offset = newOffset
-    }
-
-    // Efecto para el zoom de los botones
-    LaunchedEffect(zoomFactor) {
-        if (zoomFactor != 1f) {
-            val centroid = Offset(containerSize.width / 2f, containerSize.height / 2f)
-            updateTransform(zoomFactor, centroid, Offset.Zero)
-            onZoomFinished()
-        }
-    }
-
-    // Inicializacion (centrar el mapa correctamente)
-    LaunchedEffect(containerSize) {
-        if (hasInitialized) return@LaunchedEffect
-        if (containerSize.width == 0 || containerSize.height == 0) return@LaunchedEffect
-        if (painter.intrinsicSize.width <= 0f || painter.intrinsicSize.height <= 0f) return@LaunchedEffect
-
-        val imgW = painter.intrinsicSize.width
-        val imgH = painter.intrinsicSize.height
-
-        // Escala inicial para cubrir la pantalla
-        val scaleX = containerSize.width / imgW
-        val scaleY = containerSize.height / imgH
-        val initialScale = max(scaleX, scaleY)
-
-        scale = initialScale
-        minScale = initialScale
-
-        // Centrado horizontal, pegado arriba (sin espacio blanco)
-        val scaledW = imgW * initialScale
-
-        offset = Offset(
-            x = (containerSize.width - scaledW) / 2f,
-            y = 0f
-        )
-
-        hasInitialized = true
-    }
-
-    // Gestos de zoom y pan
     Box(
         modifier = modifier
             .fillMaxSize()
             .clipToBounds()
-            .onSizeChanged { containerSize = it }
-            .pointerInput(mode) {
+            .onSizeChanged { onSizeChanged(it) }
+            .pointerInput(Unit) {
+                // Detecta gestos de zoom y arrastre del mapa
                 detectTransformGestures { centroid, pan, zoom, _ ->
-                    if (mode == MapMode.VIEW || mode == MapMode.DELETE_POI) {
-                        updateTransform(zoom, centroid, pan)
-                    }
+                    onTransform(centroid, pan, zoom)
                 }
             }
             .pointerInput(mode) {
+                // Detecta toques para añadir POIs si está en el modo correcto
                 if (mode == MapMode.ADD_POI) {
                     detectTapGestures { tap ->
                         val imgPos = (tap - offset) / scale
-
-                        if (
-                            imgPos.x in 0f..painter.intrinsicSize.width &&
-                            imgPos.y in 0f..painter.intrinsicSize.height
-                        ) {
-                            onAddPoi(imgPos)
-                        }
+                        onAddPoi(imgPos)
                     }
                 }
             }
     ) {
-
+        // Imagen del mapa
         Image(
             painter = painter,
-            contentDescription = "Mapa del museo",
+            contentDescription = "Mapa",
             contentScale = ContentScale.None,
+            alignment = Alignment.TopStart,
             modifier = Modifier
-                .onSizeChanged {}
+                .wrapContentSize(unbounded = true, align = Alignment.TopStart)
                 .graphicsLayer(
                     scaleX = scale,
                     scaleY = scale,
@@ -158,23 +86,48 @@ fun ZoomableMapContent(
                     transformOrigin = TransformOrigin(0f, 0f)
                 )
         )
-        // POIs (completamente alineados al mapa)
+
+        // Dibuja los pines de los POIs
         pois.forEach { poi ->
+            val isBeingDragged = draggedPoi?.id == poi.id
+            var currentPos by remember(poi.id) { mutableStateOf(poi.positionOnImage) }
+
+            // Sincroniza la posición si cambia desde fuera
+            // mientras no se está arrastrando este pin en concreto.
+            LaunchedEffect(poi.positionOnImage) {
+                if (!isBeingDragged) {
+                    currentPos = poi.positionOnImage
+                }
+            }
+
+            val pinOffset = (currentPos * scale + offset)
+            val pinSizePx = with(density) { 40.dp.toPx() }
+
             PoiPin(
                 poi = poi,
-                onPoiClick = onPoiClick,
+                mode = mode,
+                isBeingDragged = isBeingDragged,
+                onPoiClick = { if (!isBeingDragged) onPoiClick(it) },
+                onDragStart = { draggedPoi = poi },
+                onDrag = { dragAmount -> currentPos += dragAmount / scale },
+                onDragEnd = {
+                    onPoiMoved(poi, currentPos)
+                    draggedPoi = null
+                },
                 modifier = Modifier.offset {
-                    with(density) {
-                        val pos = poi.positionOnImage * scale + offset
-                        val markerPx = 48.dp.toPx()
-
-                        IntOffset(
-                            (pos.x - markerPx / 2).roundToInt(),
-                            (pos.y - markerPx / 2).roundToInt()
-                        )
-                    }
+                    IntOffset(
+                        (pinOffset.x - pinSizePx / 2).roundToInt(),
+                        (pinOffset.y - pinSizePx / 2).roundToInt()
+                    )
                 }
             )
         }
+
+        // Controles de zoom
+        ZoomControls(
+            onZoomIn = onZoomIn,
+            onZoomOut = onZoomOut,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 96.dp, end = 16.dp)
+        )
     }
 }

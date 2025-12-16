@@ -15,10 +15,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+// Estado de la pantalla de login/registro
 data class LoginState(
     val loading: Boolean = false
 )
 
+// Eventos de una sola vez para la pantalla
 sealed class LoginEvent {
     data object LoginSuccess : LoginEvent()
     data object RegisterSuccess : LoginEvent()
@@ -27,15 +29,19 @@ sealed class LoginEvent {
 
 class LoginViewModel : ViewModel() {
 
+    // Servicios de Firebase
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
+    // Flujo de estado de la UI
     private val _screenState = MutableStateFlow(LoginState())
     val screenState: StateFlow<LoginState> = _screenState.asStateFlow()
 
+    // Flujo para eventos de una sola vez
     private val _screenEvents = MutableSharedFlow<LoginEvent>()
     val screenEvents: SharedFlow<LoginEvent> = _screenEvents.asSharedFlow()
 
+    // Inicia sesión con correo y contraseña
     fun login(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             emitEvent(LoginEvent.Error("Por favor, completa todos los campos"))
@@ -55,6 +61,7 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    // Crea un nuevo usuario
     fun createUser(
         email: String,
         password: String,
@@ -62,7 +69,6 @@ class LoginViewModel : ViewModel() {
         role: String,
         employeeCodeInput: String? = null
     ) {
-        // Validaciones iniciales
         if (email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
             emitEvent(LoginEvent.Error("Por favor, completa todos los campos"))
             return
@@ -79,7 +85,7 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             setLoading(true)
             try {
-                // Si es admin, valida el código primero
+                // Valida el código de empleado si el rol es admin
                 if (role == "admin") {
                     val isCodeValid = validateEmployeeCode(employeeCodeInput)
                     if (!isCodeValid) {
@@ -87,15 +93,14 @@ class LoginViewModel : ViewModel() {
                     }
                 }
 
-                // 1. Crear usuario en Firebase Auth
+                // Crea el usuario en Firebase Auth
                 val authResult = auth.createUserWithEmailAndPassword(email, password).await()
                 val user = authResult.user ?: throw Exception("Error inesperado al crear usuario")
 
-                // 2. Guardar datos adicionales en Firestore
+                // Guarda el perfil del usuario en Firestore
                 val userProfile = hashMapOf("email" to email, "role" to role)
                 db.collection("users").document(user.uid).set(userProfile).await()
 
-                // 3. Emitir evento de éxito
                 emitEvent(LoginEvent.RegisterSuccess)
 
             } catch (e: Exception) {
@@ -106,6 +111,7 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    // Valida el código de empleado contra Firestore
     private suspend fun validateEmployeeCode(inputCode: String?): Boolean {
         if (inputCode.isNullOrBlank()) {
             return false
@@ -119,22 +125,25 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    // Cierra la sesión del usuario actual
     fun signOut() {
         auth.signOut()
     }
 
+    // Actualiza el estado de carga
     private fun setLoading(value: Boolean) {
         _screenState.update { it.copy(loading = value) }
     }
 
+    // Emite un evento de una sola vez
     private fun emitEvent(event: LoginEvent) {
         viewModelScope.launch {
             _screenEvents.emit(event)
         }
     }
 
+    // Traduce los errores de Firebase a mensajes legibles
     private fun firebaseError(exception: Exception?): String {
-        // Primero, maneja el mensaje de excepciones personalizadas
         if (exception?.message == "Código de empleado incorrecto") {
             return exception.message!!
         }

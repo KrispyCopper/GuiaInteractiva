@@ -60,6 +60,9 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation ("com.google.firebase:firebase-storage")
 
+    // Jetpack DataStore
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-core:1.1.1")
 
     // Test dependencies
     testImplementation(libs.junit)

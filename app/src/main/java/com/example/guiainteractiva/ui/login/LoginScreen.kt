@@ -13,14 +13,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -32,11 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -45,7 +48,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.guiainteractiva.R
+import com.example.guiainteractiva.ui.theme.gradientColors
 
+// Pantalla de inicio de sesión
 @Composable
 fun LoginScreen(
     loginViewModel: LoginViewModel = viewModel(),
@@ -55,6 +60,7 @@ fun LoginScreen(
     val uiState by loginViewModel.screenState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    // Efecto para manejar los eventos de la pantalla
     LaunchedEffect(Unit) {
         loginViewModel.screenEvents.collect { event ->
             when (event) {
@@ -65,6 +71,7 @@ fun LoginScreen(
         }
     }
 
+    // Contenido de la pantalla de inicio de sesión
     LoginScreenContent(
         uiState = uiState,
         onLogin = { email, password ->
@@ -78,32 +85,31 @@ fun LoginScreen(
     )
 }
 
+// Cabecera con el logo y el título
 @Composable
-    //Header reutilizable
 fun Header() {
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Guía Museo Angostura",
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         Image(
             painter = painterResource(id = R.drawable.logo_museo),
-            contentDescription = "Logo de la Aplicación",
-            modifier = Modifier.height(120.dp)
+            contentDescription = "Logo",
+            modifier = Modifier.height(90.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Guía Museo Angostura",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF2D2D2D),
+            textAlign = TextAlign.Center
         )
     }
 }
+
+// Contenido principal de la pantalla de inicio de sesión
 @Composable
 private fun LoginScreenContent(
     modifier: Modifier = Modifier,
@@ -114,130 +120,136 @@ private fun LoginScreenContent(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    // Fondo con gradiente o color sólido
+    val backgroundModifier = MaterialTheme.gradientColors?.let {
+        Modifier.background(
+            Brush.verticalGradient(
+                colors = listOf(it.top, it.center, it.bottom)
+            )
+        )
+    } ?: Modifier.background(MaterialTheme.colorScheme.background)
 
-        Column(
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .then(backgroundModifier),
+        contentAlignment = Alignment.Center
+    ) {
+
+        // Tarjeta de inicio de sesión
+        Card(
             modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .fillMaxWidth(0.88f),
+            shape = RoundedCornerShape(28.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White.copy(alpha = 0.92f)
+            )
         ) {
-            //Header refactorizado para ser reutilizable
-            Box(
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .padding(28.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+
                 Header()
-            }
 
-            //Formulario Inferior
-            Surface(
-                modifier = Modifier
-                    .weight(2f)
-                    .fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-            ) {
-                Column(
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Estilo de los campos de texto
+                val textFieldColors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF2F2F2),
+                    unfocusedContainerColor = Color(0xFFF2F2F2),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedPlaceholderColor = Color.Gray,
+                    unfocusedPlaceholderColor = Color.Gray
+                )
+
+                // Campo de texto para el email
+                TextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("User") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Email, contentDescription = null)
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = textFieldColors,
+                    enabled = !uiState.loading
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Campo de texto para la contraseña
+                TextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Password") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = null)
+                    },
+                    visualTransformation = PasswordVisualTransformation(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = textFieldColors,
+                    enabled = !uiState.loading
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Botón de inicio de sesión
+                Button(
+                    onClick = { onLogin(email, password) },
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp)
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    enabled = !uiState.loading
                 ) {
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    //Email
-                    TextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Email") },
-                        shape = CircleShape,
-                        enabled = !uiState.loading,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.tertiary,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.tertiary,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Contraseña
-                    TextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Contraseña") },
-                        shape = CircleShape,
-                        visualTransformation = PasswordVisualTransformation(),
-                        enabled = !uiState.loading,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.tertiary,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.tertiary,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    //Boton Login
-                    Button(
-                        onClick = { onLogin(email, password) },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !uiState.loading,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary
-                        )
-                    ) {
-                        Text(
-                            "Iniciar Sesión",
-                            color = MaterialTheme.colorScheme.onSecondary,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
                     Text(
-                        text = "¿No tienes una cuenta?",
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "Iniciar Sesión",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
                     )
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                    //Boton registro
-                    Button(
-                        onClick = onNavigateToRegister,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !uiState.loading,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text(
-                            "Registrarse",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
+                // Botón para ir a la pantalla de registro
+                Button(
+                    onClick = onNavigateToRegister,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    enabled = !uiState.loading
+                ) {
+                    Text(
+                        text = "Registrarse",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
 
-        // Overlay de carga
+        // Indicador de carga
         if (uiState.loading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)),
+                    .background(Color.Black.copy(alpha = 0.45f)),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = Color.White)
@@ -246,6 +258,7 @@ private fun LoginScreenContent(
     }
 }
 
+// Muestra un mensaje Toast
 fun showToast(context: Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }
